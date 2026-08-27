@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Match Dossier</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --pitch-dark:#0B2E22; --pitch:#0F3D2C; --slate:#122820; --chalk:#F2EFE4;
+    --chalk-dim:#B9C4BB; --amber:#E7A93D; --alert:#C1443D; --line:#25493A;
+    --mono: ui-monospace, 'SF Mono', Consolas, monospace;
+    --disp: 'Arial Narrow', 'Helvetica Neue Condensed', Impact, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--pitch-dark); color:var(--chalk); font-family:-apple-system,Roboto,sans-serif;}
+  .wrap{max-width:640px; margin:0 auto; padding-bottom:40px;}
+  .hero{padding:22px 18px 16px; border-bottom:2px solid var(--amber);}
+  .eyebrow{font-family:var(--mono); letter-spacing:0.2em; font-size:11px; color:var(--amber); text-transform:uppercase;}
+  h1{font-family:var(--disp); font-size:30px; margin:6px 0; text-transform:uppercase;}
+  .tag{color:var(--chalk-dim); font-size:13px;}
+  .card{background:var(--slate); border:1px solid var(--line); border-radius:6px; margin:14px 16px; padding:14px;}
+  label{display:block; font-family:var(--mono); font-size:11px; color:var(--chalk-dim); margin:8px 0 4px; text-transform:uppercase;}
+  select, input{width:100%; background:var(--pitch-dark); border:1px solid var(--line); color:var(--chalk); padding:9px 10px; border-radius:4px; font-size:14px;}
+  .row{display:flex; gap:10px;}
+  .row > div{flex:1;}
+  button{width:100%; font-family:var(--disp); text-transform:uppercase; font-weight:700; background:var(--amber); color:var(--pitch-dark); border:none; padding:11px; border-radius:5px; margin-top:12px; font-size:15px;}
+  button:disabled{opacity:0.5;}
+  .err{color:var(--alert); font-family:var(--mono); font-size:12px; margin-top:8px; white-space:pre-wrap;}
+  .hint{font-size:11px; color:var(--chalk-dim); margin-top:6px;}
+  .section-title{font-family:var(--mono); font-size:11px; letter-spacing:0.15em; color:var(--amber); text-transform:uppercase; margin-bottom:8px;}
+  .fixlist{display:flex; flex-direction:column; gap:8px;}
+  .fixture{background:var(--pitch-dark); border:1px solid var(--line); border-radius:4px; padding:10px 12px; cursor:pointer;}
+  .fixture.active{border-color:var(--amber); background:rgba(231,169,61,0.08);}
+  .fixture .teams{font-size:14px; font-weight:600;}
+  .fixture .meta{font-family:var(--mono); font-size:11px; color:var(--chalk-dim); margin-top:2px;}
+  .matchup{display:flex; align-items:center; justify-content:center; gap:14px; font-family:var(--disp); font-size:20px; text-transform:uppercase; text-align:center;}
+  .matchup .vs{font-family:var(--mono); font-size:12px; color:var(--amber);}
+  .factor{border-top:1px solid var(--line); padding:14px 0;}
+  .factor:first-child{border-top:none; padding-top:0;}
+  .factor-head{display:flex; justify-content:space-between; font-family:var(--disp); text-transform:uppercase; font-size:15px; margin-bottom:8px;}
+  .factor-head .weight{font-family:var(--mono); font-size:10px; color:var(--chalk-dim); text-transform:none;}
+  .form-badges{display:flex; gap:4px;}
+  .badge{width:22px; height:22px; border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; font-weight:700;}
+  .badge.W{background:#2E7D53;} .badge.D{background:#5A5A45;} .badge.L{background:var(--alert);} .badge.x{background:var(--line); color:var(--chalk-dim);}
+  .split-row{display:flex; align-items:center; gap:8px; font-size:12.5px; margin:5px 0;}
+  .split-row .lbl{width:100px; color:var(--chalk-dim); font-family:var(--mono); font-size:10px; text-transform:uppercase;}
+  .bar-track{flex:1; height:7px; background:var(--pitch-dark); border-radius:4px; overflow:hidden; border:1px solid var(--line);}
+  .bar-fill{height:100%; background:var(--amber);}
+  .split-row .val{width:55px; text-align:right; font-family:var(--mono); font-size:11px;}
+  .h2h-tally{display:flex; gap:10px; margin-bottom:8px;}
+  .h2h-tally div{text-align:center; flex:1;}
+  .h2h-tally .n{font-family:var(--disp); font-size:24px;}
+  .h2h-tally .l{font-family:var(--mono); font-size:9px; color:var(--chalk-dim); text-transform:uppercase;}
+  .h2h-list{font-size:11px; color:var(--chalk-dim); font-family:var(--mono); line-height:1.7;}
+  .pos-compare{display:flex; justify-content:space-around; text-align:center;}
+  .pos-compare .p{font-family:var(--disp); font-size:30px;}
+  .pos-compare .n{font-size:11px; color:var(--chalk-dim);}
+  .injury-list{list-style:none; margin:0; padding:0; font-size:12px;}
+  .injury-list li{padding:4px 0; border-bottom:1px dashed var(--line); display:flex; justify-content:space-between;}
+  .none-note{color:var(--chalk-dim); font-size:12px; font-style:italic;}
+  .meter-card{background:var(--slate); border:1px solid var(--amber); border-radius:6px; margin:14px 16px; padding:16px;}
+  .meter-title{font-family:var(--disp); text-transform:uppercase; font-size:19px; text-align:center; margin:0;}
+  .meter-sub{text-align:center; font-family:var(--mono); font-size:10px; color:var(--chalk-dim); margin-bottom:14px;}
+  .stack{display:flex; height:38px; border-radius:5px; overflow:hidden; border:1px solid var(--line);}
+  .stack>div{display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; font-size:12px;}
+  .seg-home{background:var(--amber); color:var(--pitch-dark);}
+  .seg-draw{background:#5A5A45;}
+  .seg-away{background:var(--alert);}
+  .stack-labels{display:flex; justify-content:space-between; margin-top:6px; font-family:var(--mono); font-size:10px; color:var(--chalk-dim); text-transform:uppercase;}
+  .rationale{margin-top:14px; font-size:13px; line-height:1.6; color:var(--chalk-dim); border-top:1px solid var(--line); padding-top:12px;}
+  .rationale b{color:var(--chalk);}
+  .loading{text-align:center; padding:26px; font-family:var(--mono); color:var(--amber); font-size:12px;}
+  footer{text-align:center; padding:16px; font-family:var(--mono); font-size:10px; color:var(--chalk-dim);}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Match Dossier</div>
+      <h1>Pick a fixture</h1>
+      <div class="tag">H2H, recent form, injuries, table position, home/away splits — weighed into one call.</div>
+    </header>
+
+    <section class="card">
+      <label>API-Football key</label>
+      <input type="password" id="apiKey" placeholder="Paste your x-apisports-key">
+      <div class="hint">Free key at dashboard.api-football.com. Stays only in this browser session.</div>
+      <div class="row">
+        <div>
+          <label>League</label>
+          <select id="league">
+            <option value="39">Premier League</option>
+            <option value="140">La Liga</option>
+            <option value="135">Serie A</option>
+            <option value="78">Bundesliga</option>
+            <option value="61">Ligue 1</option>
+            <option value="88">Eredivisie</option>
+            <option value="2">Champions League</option>
+          </select>
+        </div>
+        <div>
+          <label>Season</label>
+          <input type="number" id="season" value="2025">
+        </div>
+      </div>
+      <button id="loadBtn">Load Fixtures</button>
+      <div class="err" id="err"></div>
+    </section>
+
+    <section class="card" id="fixCard" style="display:none;">
+      <div class="section-title">Upcoming</div>
+      <div class="fixlist" id="fixList"></div>
+    </section>
+
+    <div id="analysisArea"></div>
+    <footer>Statistical read only — not a guarantee. Bet responsibly.</footer>
+  </div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const API_BASE = 'https://v3.football.api-sports.io';
+let state = { apiKey:'', fixtures:[] };
+const $ = id => document.getElementById(id);
+
+async function apiGet(path, params){
+  const url = new URL(API_BASE + path);
+  Object.entries(params||{}).forEach(([k,v])=> v!==undefined && v!==null && url.searchParams.set(k,v));
+  const res = await fetch(url.toString(), { headers: { 'x-apisports-key': state.apiKey } });
+  if(!res.ok) throw new Error('HTTP '+res.status+' on '+path);
+  const json = await res.json();
+  if(json.errors && Object.keys(json.errors).length) throw new Error(JSON.stringify(json.errors));
+  return json.response;
+}
+
+$('loadBtn').addEventListener('click', async ()=>{
+  const errEl = $('err'); errEl.textContent='';
+  state.apiKey = $('apiKey').value.trim();
+  if(!state.apiKey){ errEl.textContent='Enter your API key first.'; return; }
+  const league = Number($('league').value);
+  const season = Number($('season').value);
+  $('loadBtn').disabled = true; $('loadBtn').textContent = 'Loading…';
+  try{
+    const fixtures = await apiGet('/fixtures', { league, season, next: 20 });
+    state.fixtures = fixtures;
+    renderFixtures(fixtures);
+    $('fixCard').style.display = 'block';
+    $('analysisArea').innerHTML = '';
+  }catch(e){
+    errEl.textContent = 'Could not load fixtures: '+e.message;
+  }finally{
+    $('loadBtn').disabled = false; $('loadBtn').textContent = 'Load Fixtures';
+  }
+});
+
+function renderFixtures(list){
+  const wrap = $('fixList');
+  if(!list.length){ wrap.innerHTML = '<div class="none-note">No upcoming fixtures found.</div>'; return; }
+  wrap.innerHTML = list.map((f,i)=>{
+    const d = new Date(f.fixture.date);
+    return `<div class="fixture" data-i="${i}">
+      <div class="teams">${f.teams.home.name} vs ${f.teams.away.name}</div>
+      <div class="meta">${d.toLocaleDateString()} · ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.fixture').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      wrap.querySelectorAll('.fixture').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+      selectFixture(state.fixtures[Number(el.dataset.i)]);
+      tg?.HapticFeedback?.impactOccurred('light');
+    });
+  });
+}
+
+async function selectFixture(fixture){
+  const area = $('analysisArea');
+  area.innerHTML = `<div class="loading">Pulling H2H, form, injuries, table &amp; splits…</div>`;
+  const home = fixture.teams.home, away = fixture.teams.away;
+  const league = fixture.league.id, season = fixture.league.season;
+  try{
+    const [h2h, homeStats, awayStats, standings, homeInj, awayInj] = await Promise.all([
+      apiGet('/fixtures/headtohead', { h2h: `${home.id}-${away.id}`, last: 10 }),
+      apiGet('/teams/statistics', { team: home.id, league, season }),
+      apiGet('/teams/statistics', { team: away.id, league, season }),
+      apiGet('/standings', { league, season }).catch(()=>[]),
+      apiGet('/injuries', { team: home.id, season }).catch(()=>[]),
+      apiGet('/injuries', { team: away.id, season }).catch(()=>[])
+    ]);
+    renderAnalysis({ home, away, h2h, homeStats, awayStats, standings, homeInj, awayInj });
+  }catch(e){
+    area.innerHTML = `<div class="card err">Analysis failed: ${e.message}</div>`;
+  }
+}
+
+function parseForm(formStr){
+  const arr = (formStr||'').split('').slice(-5);
+  while(arr.length < 5) arr.unshift('x');
+  const pts = arr.reduce((s,c)=> s + (c==='W'?3:c==='D'?1:0), 0);
+  return { arr, pts };
+}
+
+function h2hTally(h2h, homeId){
+  let homeWins=0, awayWins=0, draws=0; const lines=[];
+  h2h.slice(0,10).forEach(f=>{
+    const hg=f.goals.home, ag=f.goals.away;
+    if(hg===null||ag===null) return;
+    if(hg===ag) draws++;
+    else if((hg>ag && f.teams.home.id===homeId)||(ag>hg && f.teams.away.id===homeId)) homeWins++;
+    else awayWins++;
+    lines.push(`${new Date(f.fixture.date).getFullYear()}  ${f.teams.home.name} ${hg}-${ag} ${f.teams.away.name}`);
+  });
+  return { homeWins, awayWins, draws, total: homeWins+awayWins+draws, lines: lines.slice(0,6) };
+}
+
+function findRank(standings, teamId){
+  try{
+    for(const g of standings[0].league.standings) for(const row of g) if(row.team.id===teamId) return row.rank;
+  }catch(e){}
+  return null;
+}
+
+function renderAnalysis(d){
+  const { home, away, h2h, homeStats, awayStats, standings, homeInj, awayInj } = d;
+  const homeForm = parseForm(homeStats.form), awayForm = parseForm(awayStats.form);
+  const h2hT = h2hTally(h2h, home.id);
+  const homeHomeWins = homeStats.fixtures.wins.home, homeHomePlayed = homeStats.fixtures.played.home;
+  const awayAwayWins = awayStats.fixtures.wins.away, awayAwayPlayed = awayStats.fixtures.played.away;
+  const homeHomePct = homeHomePlayed ? homeHomeWins/homeHomePlayed : 0;
+  const awayAwayPct = awayAwayPlayed ? awayAwayWins/awayAwayPlayed : 0;
+  const homeRank = findRank(standings, home.id), awayRank = findRank(standings, away.id);
+  const homeInjCount = (homeInj||[]).length, awayInjCount = (awayInj||[]).length;
+
+  const W = { form:0.25, h2h:0.15, split:0.25, table:0.20, injury:0.15 };
+  const formScore = (homeForm.pts - awayForm.pts) / 15;
+  const h2hScore = h2hT.total ? (h2hT.homeWins - h2hT.awayWins) / h2hT.total : 0;
+  const splitScore = homeHomePct - awayAwayPct;
+  let tableScore = 0;
+  if(homeRank && awayRank) tableScore = Math.max(-1, Math.min(1, (awayRank-homeRank)/20));
+  const injuryScore = Math.max(-1, Math.min(1, (awayInjCount-homeInjCount)/6));
+
+  let raw = W.form*formScore + W.h2h*h2hScore + W.split*splitScore + W.table*tableScore + W.injury*injuryScore;
+  raw = Math.max(-1, Math.min(1, raw));
+
+  let homeP = 0.34 + raw*0.36 + 0.04;
+  let awayP = 0.34 - raw*0.36 - 0.04;
+  let drawP = 1 - homeP - awayP;
+  homeP=Math.max(0.05,homeP); awayP=Math.max(0.05,awayP); drawP=Math.max(0.10,drawP);
+  const sum = homeP+awayP+drawP;
+  homeP=Math.round(homeP/sum*100); awayP=Math.round(awayP/sum*100); drawP=100-homeP-awayP;
+  const lean = homeP>=awayP && homeP>=drawP ? home.name : (awayP>=homeP && awayP>=drawP ? away.name : 'a draw');
+
+  const badges = arr => arr.map(c=>`<div class="badge ${c}">${c==='x'?'–':c}</div>`).join('');
+  const injList = (list) => !list.length ? `<div class="none-note">No reported injuries.</div>` :
+    `<ul class="injury-list">${list.slice(0,6).map(x=>`<li><span>${x.player.name}</span><span>${x.player.reason||x.player.type||''}</span></li>`).join('')}</ul>`;
+
+  $('analysisArea').innerHTML = `
+  <div class="card">
+    <div class="matchup"><div>${home.name}</div><div class="vs">VS</div><div>${away.name}</div></div>
+    <div class="factor">
+      <div class="factor-head"><span>Recent Form</span><span class="weight">${Math.round(W.form*100)}%</span></div>
+      <div class="split-row"><div class="lbl">${home.name}</div><div class="form-badges">${badges(homeForm.arr)}</div><div class="val">${homeForm.pts}/15</div></div>
+      <div class="split-row"><div class="lbl">${away.name}</div><div class="form-badges">${badges(awayForm.arr)}</div><div class="val">${awayForm.pts}/15</div></div>
+    </div>
+    <div class="factor">
+      <div class="factor-head"><span>Head-to-Head</span><span class="weight">${Math.round(W.h2h*100)}% · last ${h2hT.total}</span></div>
+      <div class="h2h-tally">
+        <div><div class="n">${h2hT.homeWins}</div><div class="l">${home.name}</div></div>
+        <div><div class="n">${h2hT.draws}</div><div class="l">Draws</div></div>
+        <div><div class="n">${h2hT.awayWins}</div><div class="l">${away.name}</div></div>
+      </div>
+      <div class="h2h-list">${h2hT.lines.join('<br>') || 'No prior meetings on record.'}</div>
+    </div>
+    <div class="factor">
+      <div class="factor-head"><span>Home / Away Split</span><span class="weight">${Math.round(W.split*100)}%</span></div>
+      <div class="split-row"><div class="lbl">${home.name} home</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(homeHomePct*100)}%"></div></div><div class="val">${homeHomeWins}/${homeHomePlayed}</div></div>
+      <div class="split-row"><div class="lbl">${away.name} away</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(awayAwayPct*100)}%"></div></div><div class="val">${awayAwayWins}/${awayAwayPlayed}</div></div>
+    </div>
+    <div class="factor">
+      <div class="factor-head"><span>League Position</span><span class="weight">${Math.round(W.table*100)}%</span></div>
+      <div class="pos-compare">
+        <div><div class="p">${homeRank ?? '—'}</div><div class="n">${home.name}</div></div>
+        <div><div class="p">${awayRank ?? '—'}</div><div class="n">${away.name}</div></div>
+      </div>
+    </div>
+    <div class="factor">
+      <div class="factor-head"><span>Injuries</span><span class="weight">${Math.round(W.injury*100)}%</span></div>
+      <div class="row">
+        <div><div class="section-title">${home.name} (${homeInjCount})</div>${injList(homeInj)}</div>
+        <div><div class="section-title">${away.name} (${awayInjCount})</div>${injList(awayInj)}</div>
+      </div>
+    </div>
+  </div>
+  <div class="meter-card">
+    <div class="meter-title">Model Read</div>
+    <div class="meter-sub">Leans toward ${lean}</div>
+    <div class="stack">
+      <div class="seg-home" style="width:${homeP}%">${homeP>=12?homeP+'%':''}</div>
+      <div class="seg-draw" style="width:${drawP}%">${drawP>=12?drawP+'%':''}</div>
+      <div class="seg-away" style="width:${awayP}%">${awayP>=12?awayP+'%':''}</div>
+    </div>
+    <div class="stack-labels"><span>${home.name}</span><span>Draw</span><span>${away.name}</span></div>
+    <div class="rationale">A weighted read of form, H2H, home/away splits, table position and injuries — one input among many, not a certainty.</div>
+  </div>`;
+}
+</script>
+</body>
+</html>
